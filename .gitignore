@@ -8,4 +8,8 @@ webserver/events.dat
 webserver/events/
 webserver/__pycache__
 
+mask/
+
+
+
 .directory
