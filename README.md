@@ -35,7 +35,7 @@ In order to install you need to get the source code via:
 
 And then install with:
 
-	$ cd radmonpi; make
+	$ cd Radmonpi; make
 
 ## Usage
 TODO
@@ -49,8 +49,6 @@ The software also includes a [bokeh](https://bokeh.pydata.org/en/latest/) script
 
 Este programa es una versión modificada de **raspiraw** [https://github.com/6by9/raspiraw](https://github.com/6by9/raspiraw) que detecta eventos de radiación ionizante y calcula su área, carga y momentos. 
 
-
-TODO: CORREGIR, YA NO ES MÁS ASÍ.
 La salida del programa tiene el siguiente formato:
 
     Timestamp, Area, Carga, M00, M01, M10, MU11, MU02, MU20, ROI.X, ROI.Y\n

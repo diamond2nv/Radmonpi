@@ -586,44 +586,39 @@ uint16_t *unpackedAndCopy(MMAL_BUFFER_HEADER_T *buffer, RASPIRAW_PARAMS_T * cfg)
 		return NULL;
 	}
 
-	// FIXME: Asumo que será:	AAAABBBBCCCCDDDDAABBCCDD
-	if (cfg->sensor->modes[cfg->mode].native_bit_depth == 10) {
-		for(i=0;i<cfg->height;i++, k+=cfg->sensor->modes[cfg->mode].skip_bytes) {
-			for(j=0;j<cfg->width;j++, k++){
-				for(l=0;l<4;l++) {
-					img[j+i*cfg->width] = (uint8_t)buffer->data[k] << 2;
-					img[j+i*cfg->width]+= (uint8_t)buffer->data[k+4-l] >> 2*(3-l)&0x3;
-				}
+	if (cfg->sensor->modes[cfg->mode].native_bit_depth == 10 && cfg->bit_depth == 10)
+	{
+		for(l=0;l<img_len;l+=width) {
+			for(m=0;m<width;i +=5) {
+				lastbyte= i+4;
+				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 6&0x3);
+				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 4&0x3);
+				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 2&0x3);
+				img[l+m++] = (data[i] << 2) + (data[lastbyte] &0x3);
 			}
+			i+=skip_bytes;
 		}
 	}
-	else {
+	else if (cfg->sensor->modes[cfg->mode].native_bit_depth == 10 && cfg->bit_depth == 8)
+	{
+		//FIXME: Al parecer la señal está modulada, pero como no lo voy a usar, después me preocupo por esto.
+		while (k < cfg->width*cfg->height) {
+			if ((i% row_buffer_size) == row_size)	{
+				i+=cfg->sensor->modes[cfg->mode].skip_bytes;
+				continue;
+			}
+			img[k++] = (uint8_t)buffer->data[i++];
+			img[k++] = (uint8_t)buffer->data[i++];
+			img[k++] = (uint8_t)buffer->data[i++];
+			img[k++] = (uint8_t)buffer->data[i++];
+			i++;
+		}
+	}
+	else
+	{
 		fprintf(stderr,"FIXME: bit_depth != 10 isn't supported yet");
 		return NULL;
 	}
-	
-	/// TODO: FIXME: ESTO SOLAMENTE FUNCIONA PARA UNA CAMARITA!
-	
-	//	// Maximo multiplo de 5 menor que buffer->length
-	//	// para asegurar que exista el 5to byte
-	//	max_buffer_length = (buffer->length-3264*8)/5*5;
-	//	// Se eliminan las ultimas 8 filas ya que no tiene informacion util (-3264*8)
-	//	for (i=0; i<max_buffer_length; i++)
-	//	{
-	//		// j:= indice que apunta a cada elemento de una fila
-	//		// Se reinicia a cero al comenzar una nueva fila
-	//		j = i%3264;			// FIXME: Poner esto en dependencia del cfg->width
-	//							// FIXME: HALLAR LA CUENTA
-//	
-	//		if (!((j+1)%5)==0 && j<3240)		// Descartamos los 24 bytes del final de cada fila con j<3240 (why?)
-	//		{
-	//			pixel = (uint8_t)buffer->data[i] << 2;			// Pongo el primer byte, dejando dos bits libres para
-	//			pixel += (uint8_t)buffer->data[i+4-j%5] >> 2*(3-j%5)&0x3;	// Pongo los otros dos bytes
-	//			img[k] = pixel;
-	//			k++;
-	//		}
-	//	}
-	//
 	return img;
 }
 
@@ -683,8 +678,6 @@ void substractMask(uint16_t *img, const uint32_t *mask, int size, RASPIRAW_PARAM
 		img[mask[i++]] = 0;
 }
 
-#define HEIGHT 1944
-#define WIDTH 2592
 int contador_imagenes = 0;
 void restaImagen(uint16_t *img_actual, const uint16_t *img_anterior, RASPIRAW_PARAMS_T *cfg)
 {
