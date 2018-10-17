@@ -586,6 +586,17 @@ uint16_t *unpackedAndCopy(MMAL_BUFFER_HEADER_T *buffer, RASPIRAW_PARAMS_T * cfg)
 		return NULL;
 	}
 
+	i=0;
+	int lastbyte = 0;
+	uint32_t l =0;
+	uint32_t m =0;
+	uint32_t img_len = cfg->width*cfg->height;
+	uint32_t width = cfg->width;
+	//uint32_t height = cfg->height;
+	uint32_t skip_bytes = cfg->sensor->modes[cfg->mode].skip_bytes;
+	uint32_t row_size = cfg->width*cfg->sensor->modes[cfg->mode].native_bit_depth/8;
+	uint32_t row_buffer_size = row_size + cfg->sensor->modes[cfg->mode].skip_bytes;
+	uint8_t * data = buffer->data;
 	if (cfg->sensor->modes[cfg->mode].native_bit_depth == 10 && cfg->bit_depth == 10)
 	{
 		for(l=0;l<img_len;l+=width) {
