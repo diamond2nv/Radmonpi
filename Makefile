@@ -1,6 +1,3 @@
-
-# gcc -lmmal_core -lmmal_util -lmmal_vc_client -lvcos -lbcm_host -I/opt/vc/include/ -L/opt/vc/lib/ -o raspiraw raspiraw.c RaspiCLI.c
-
 CC = gcc
 CFLAGS = -I/opt/vc/include/ -Wall
 LIBS = -L/opt/vc/lib/ -lmmal_core -lmmal_util -lmmal_vc_client -lvcos -lbcm_host # -L/usr/lib -lm -ldl -lstdc++ 
@@ -22,6 +19,11 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 .PHONY: all
 all: radmonpi mask_generator simulate
 	@echo "Successfully build"
+
+.PHONY: debug
+debug: CFLAGS += -g -DDEBUG
+debug: radmonpi mask_generator simulate
+	@echo "Successfully build the debug version"
 
 radmonpi: $(OBJDIR)/radmonpi.o $(OBJDIR)/RaspiCLI.o
 	@$(MD) -p $(BINDIR)
