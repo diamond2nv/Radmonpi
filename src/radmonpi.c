@@ -572,7 +572,7 @@ void unpackedAndSave(MMAL_BUFFER_HEADER_T *buffer, char *filename_up, RASPIRAW_P
 
 uint16_t *unpackedAndCopy(MMAL_BUFFER_HEADER_T *buffer, RASPIRAW_PARAMS_T * cfg)
 {
-	int i,j,l, k=0;
+	int i,k=0;
 	uint16_t *img;
 	img = (uint16_t *) malloc(cfg->width*cfg->height*sizeof(uint16_t));
 	if (img==NULL)	{
