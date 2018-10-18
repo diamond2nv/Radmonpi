@@ -744,7 +744,7 @@ int recursiveAddingto(coord_t * event, uint16_t *img_actual, uint16_t x, uint16_
 	return toReturn;
 }
 
-double mean_value_skiping(const uint16_t *imagen_actual, RASPIRAW_PARAMS_T cfg,unsigned int skiping){
+double mean_value_skiping(const uint16_t *imagen_actual, RASPIRAW_PARAMS_T * cfg,unsigned int skiping){
 	int i=0;
 	uint32_t len=cfg->width*cfg->height;
 	uint64_t sum= 0;
@@ -755,10 +755,10 @@ double mean_value_skiping(const uint16_t *imagen_actual, RASPIRAW_PARAMS_T cfg,u
 		for(i=0;i<len;i+=skiping+1)
 			sum += imagen_actual[i];
 	}
-	return imagen_actual/(double)(skiping+1);
-
+	return (imagen_actual/(double)(skiping+1));
 }
-double mean_value(const uint16_t *imagen_actual, RASPIRAW_PARAMS_T cfg){
+
+double mean_value(const uint16_t *imagen_actual, RASPIRAW_PARAMS_T * cfg){
 	return mean_value_skiping(imagen_actual,cfg,0);
 }
 
@@ -937,7 +937,7 @@ static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 						fprintf(stderr, "\tIt took me\t%Lu ms\tto process an image\n",currentTimeMillis() - time_last_call);
 					
 					if (cfg->debug >= 2){
-						fprintf(stderr, "\tMean Value: %d\n",mean_value(imagen_actual, cfg))
+						fprintf(stderr, "\tMean Value: %d\n",mean_value(imagen_actual, cfg));
 						if (cfg->debug >=3 && cfg->showtime){
 							previousTime = currentTimeMillis();
 							int j;
