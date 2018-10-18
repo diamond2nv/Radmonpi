@@ -106,8 +106,8 @@ source_charge_histogram = ColumnDataSource(data=dict(x=range(0,len(charge_histo)
 p_charge_histogram.step('x','y',source=source_charge_histogram, mode="center")
 
 log_y_axis_charge_histogram = RadioButtonGroup(labels=["Lineal", "Log"], active=0)
-slider_charge_histo_bin = Slider(title="Ancho del bin", value=1, start=1, end=64, step=1, callback_policy='mouseup', callback=update_charge_histogram)
-#slider_charge_histo_bin.on_change('value',update_charge_histogram)
+slider_charge_histo_bin = Slider(title="Ancho del bin", value=1, start=1, end=64, step=1)
+slider_charge_histo_bin.on_change('value',update_charge_histogram)
 tab2 = Panel(child=column(widgetbox(button_update,slider_charge_histo_bin),
                     p_charge_histogram), title="Carga")
 
