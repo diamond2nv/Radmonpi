@@ -755,7 +755,7 @@ double mean_value_skiping(const uint16_t *imagen_actual, RASPIRAW_PARAMS_T * cfg
 		for(i=0;i<len;i+=skiping+1)
 			sum += imagen_actual[i];
 	}
-	return sum/(double)(skiping+1);
+	return sum*(double)(skiping+1)/len;
 }
 
 double mean_value(const uint16_t *imagen_actual, RASPIRAW_PARAMS_T * cfg){
@@ -789,8 +789,8 @@ int detectarEventos(const uint16_t *img_actual, const uint16_t *img_anterior,
 
 	if (cfg->debug){
 		pixel_rand = rand()%(cfg->width*cfg->height);
-		fprintf(stderr, "img_unaltered[%u,%u]=%u\t",pixel_rand%cfg->width, pixel_rand/cfg->width, img_copy[pixel_rand]);
-		fprintf(stderr, "img_subtracted[%u,%u]=%u\n",pixel_rand%cfg->width, pixel_rand/cfg->width, img_copy[pixel_rand]);
+		fprintf(stderr, "img[%u,%u]=%u\t==>\t",pixel_rand%cfg->width, pixel_rand/cfg->width, img_actual[pixel_rand]);
+		fprintf(stderr, "img[%u,%u]=%u\n",pixel_rand%cfg->width, pixel_rand/cfg->width, img_copy[pixel_rand]);
 	}
 
 	for (i=0; i<cfg->height*cfg->width;i++){
@@ -937,13 +937,13 @@ static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 						fprintf(stderr, "\tIt took me\t%Lu ms\tto process an image\n",currentTimeMillis() - time_last_call);
 					
 					if (cfg->debug >= 2){
-						fprintf(stderr, "\tMean Value: %lf\n",mean_value(imagen_actual, cfg));
 						if (cfg->debug >=3 && cfg->showtime){
 							previousTime = currentTimeMillis();
 							int j;
 							for(j=0; j<cfg->width*cfg->height; j++);
 							fprintf(stderr, "\tIt took me\t%Lu ms\tto make a dummy for\n",currentTimeMillis() - previousTime);
 						}
+						fprintf(stderr, "\tMean Value: %lf\n",mean_value(imagen_actual, cfg));
 					}
 
 					imagen_anterior = imagen_actual;
