@@ -579,8 +579,6 @@ uint16_t *unpackedAndCopy(MMAL_BUFFER_HEADER_T *buffer, RASPIRAW_PARAMS_T * cfg)
 		fprintf(stderr,"No se pudo allocar memoria\n");
 		return NULL;
 	}
-	fprintf(stderr,"%d,%d,%d,%d,%d\n",cfg->height,cfg->width,cfg->bit_depth,cfg->mode,cfg->sensor->modes[cfg->mode].skip_bytes);
-
 	if (cfg->height*cfg->width*cfg->bit_depth+cfg->width*cfg->sensor->modes[cfg->mode].skip_bytes < buffer->length) {
 		fprintf(stderr, "The buffer isn't long enough\n");
 		return NULL;
@@ -746,21 +744,38 @@ int recursiveAddingto(coord_t * event, uint16_t *img_actual, uint16_t x, uint16_
 	return toReturn;
 }
 
+double mean_value_skiping(const uint16_t *imagen_actual, RASPIRAW_PARAMS_T cfg,unsigned int skiping){
+	int i=0;
+	uint32_t len=cfg->width*cfg->height;
+	uint64_t sum= 0;
+	if (!skiping){
+		for(i=0;i<len;i++)
+			sum += imagen_actual[i];
+	} else {
+		for(i=0;i<len;i+=skiping+1)
+			sum += imagen_actual[i];
+	}
+	return imagen_actual/(double)(skiping+1);
+
+}
+double mean_value(const uint16_t *imagen_actual, RASPIRAW_PARAMS_T cfg){
+	return mean_value_skiping(imagen_actual,cfg,0);
+}
+
 int detectarEventos(const uint16_t *img_actual, const uint16_t *img_anterior,
 					const uint64_t timereference, RASPIRAW_PARAMS_T *cfg)
 {
-	uint32_t i;
+	uint32_t i, pixel_rand;
 	uint16_t j;
 	int size;
 
 	/// Making a copy of the actual image
 	uint16_t *img_copy = (uint16_t *)malloc(sizeof(uint16_t)*cfg->width*cfg->height);
 	if (img_copy == NULL) return -1;
-
+	
 	if (cfg->showtime) previousTime = currentTimeMillis();
 	memcpy((void *)img_copy, (void *)img_actual, cfg->width*cfg->height*sizeof(uint16_t));
 	if (cfg->showtime) fprintf(stderr, "\tIt took me\t%Lu ms\tto copy an Image\n", currentTimeMillis() - previousTime);
-	if (cfg->debug) fprintf(stderr, "img[500,503]=%u\t",img_copy[500+503*cfg->width]);
 
 	if (cfg->showtime) previousTime = currentTimeMillis();
 	restaImagen(img_copy, img_anterior, cfg);
@@ -772,7 +787,12 @@ int detectarEventos(const uint16_t *img_actual, const uint16_t *img_anterior,
 		if (cfg->showtime) fprintf(stderr, "\tIt took me\t%Lu ms\tto substract the mask\n", currentTimeMillis() - previousTime);
 	}
 
-	if (cfg->debug) fprintf(stderr, "img[500,503]=%u\n",img_copy[500+503*cfg->width]);
+	if (cfg->debug){
+		pixel_rand = rand()%(cfg->width*cfg->height);
+		fprintf(stderr, "img_unaltered[%u,%u]=%u\t",pixel_rand%cfg->width, pixel_rand/cfg->width, img_copy[pixel_rand]);
+		fprintf(stderr, "img_subtracted[%u,%u]=%u\n",pixel_rand%cfg->width, pixel_rand/cfg->width, img_copy[pixel_rand]);
+	}
+
 	for (i=0; i<cfg->height*cfg->width;i++){
 		if (img_copy[i]>cfg->evtrigger) {
 			// Creo un evento
@@ -911,18 +931,24 @@ static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 					imagen_actual = unpackedAndCopy(buffer,cfg);
 					detectarEventos(imagen_actual, imagen_anterior, timestamp_inicial, cfg);
 					free(imagen_anterior);
-					imagen_anterior = imagen_actual;
+					
+					
 					if (cfg->showtime)
-					{
 						fprintf(stderr, "\tIt took me\t%Lu ms\tto process an image\n",currentTimeMillis() - time_last_call);
+					
+					if (cfg->debug >= 2){
+						fprintf(stderr, "\tMean Value: %d\n",mean_value(imagen_actual, cfg))
+						if (cfg->debug >=3 && cfg->showtime){
+							previousTime = currentTimeMillis();
+							int j;
+							for(j=0; j<cfg->width*cfg->height; j++);
+							fprintf(stderr, "\tIt took me\t%Lu ms\tto make a dummy for\n",currentTimeMillis() - previousTime);
+						}
 					}
 
-					//if (cfg->showtime){
-					//	previousTime = currentTimeMillis();
-					//	int j;
-					//	for(j=0; j<cfg->width*cfg->height; j++);
-					//	fprintf(stderr, "\tIt took me\t%Lu ms\tto make a dummy for\n",currentTimeMillis() - previousTime);
-					//}
+					imagen_anterior = imagen_actual;
+					
+					
 
 					// TODO:	alta hacer algo para liberar imagener algo para liberar imagen_actual
 					//			(o lo que queda como imagen_anterior) cuando el programa termina.

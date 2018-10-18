@@ -10,6 +10,5 @@ webserver/__pycache__
 
 mask/
 
-
-
 .directory
+.vscode

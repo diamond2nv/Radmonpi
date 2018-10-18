@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -I/opt/vc/include/ -Wall
+CFLAGS = -I/opt/vc/include/ -I. -Wall
 LIBS = -L/opt/vc/lib/ -lmmal_core -lmmal_util -lmmal_vc_client -lvcos -lbcm_host # -L/usr/lib -lm -ldl -lstdc++ 
 DEPS = adv7282m_modes.h imx219_modes.h ov5647_modes.h RaspiCLI.h raw_header.h
 OBJDIR = obj

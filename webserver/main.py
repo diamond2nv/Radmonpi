@@ -15,7 +15,7 @@ from itertools import zip_longest
 OUT_FILE = "events.dat"
 EVENTS_DIR = "events"
 COMMAND = "./simulate"
-MASK_FILE = "radmonpi.mask"
+MASK_FILE = "mask.mask"
 
 ## Medir
 button_begin_measure = RadioButtonGroup(labels=["Parar", "Medir"], active=0)
