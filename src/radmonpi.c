@@ -598,12 +598,12 @@ uint16_t *unpackedAndCopy(MMAL_BUFFER_HEADER_T *buffer, RASPIRAW_PARAMS_T * cfg)
 	if (cfg->sensor->modes[cfg->mode].native_bit_depth == 10 && cfg->bit_depth == 10)
 	{
 		for(l=0;l<img_len;l+=width) {
-			for(m=0;m<width;i +=5) {
+			for(m=0;m<width;i++) {
 				lastbyte= i+4;
-				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 6&0x3);
-				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 4&0x3);
-				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 2&0x3);
-				img[l+m++] = (data[i] << 2) + (data[lastbyte] &0x3);
+				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 6&0x3);i++;
+				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 4&0x3);i++;
+				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 2&0x3);i++;
+				img[l+m++] = (data[i] << 2) + (data[lastbyte] &0x3);	i++;
 			}
 			i+=skip_bytes;
 		}
@@ -789,8 +789,8 @@ int detectarEventos(const uint16_t *img_actual, const uint16_t *img_anterior,
 
 	if (cfg->debug){
 		pixel_rand = rand()%(cfg->width*cfg->height);
-		fprintf(stderr, "img[%u,%u]=%u\t==>\t",pixel_rand%cfg->width, pixel_rand/cfg->width, img_actual[pixel_rand]);
-		fprintf(stderr, "img[%u,%u]=%u\n",pixel_rand%cfg->width, pixel_rand/cfg->width, img_copy[pixel_rand]);
+		fprintf(stderr, "\timg[%u,%u]=%u\t==>\t",pixel_rand%cfg->width, pixel_rand/cfg->width, img_actual[pixel_rand]);
+		fprintf(stderr, "\timg[%u,%u]=%u\n",pixel_rand%cfg->width, pixel_rand/cfg->width, img_copy[pixel_rand]);
 	}
 
 	for (i=0; i<cfg->height*cfg->width;i++){

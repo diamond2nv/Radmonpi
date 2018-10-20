@@ -538,7 +538,7 @@ uint16_t *unpackedAndCopy(MMAL_BUFFER_HEADER_T *buffer, RASPIRAW_PARAMS_T * cfg)
 		fprintf(stderr,"No se pudo allocar memoria\n");
 		return NULL;
 	}
-	fprintf(stderr,"%d,%d,%d,%d,%d\n",cfg->height,cfg->width,cfg->bit_depth,cfg->mode,cfg->sensor->modes[cfg->mode].skip_bytes);
+	
 	if (cfg->height*cfg->width*cfg->sensor->modes[cfg->mode].native_bit_depth+cfg->width*cfg->sensor->modes[cfg->mode].skip_bytes < buffer->length) {
 		fprintf(stderr, "The buffer isn't long enough\n");
 		return NULL;
@@ -559,12 +559,12 @@ uint16_t *unpackedAndCopy(MMAL_BUFFER_HEADER_T *buffer, RASPIRAW_PARAMS_T * cfg)
 	if (cfg->sensor->modes[cfg->mode].native_bit_depth == 10 && cfg->bit_depth == 10)
 	{
 		for(l=0;l<img_len;l+=width) {
-			for(m=0;m<width;i +=5) {
+			for(m=0;m<width;i++) {
 				lastbyte= i+4;
-				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 6&0x3);
-				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 4&0x3);
-				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 2&0x3);
-				img[l+m++] = (data[i] << 2) + (data[lastbyte] &0x3);
+				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 6&0x3);i++;
+				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 4&0x3);i++;
+				img[l+m++] = (data[i] << 2) + (data[lastbyte] >> 2&0x3);i++;
+				img[l+m++] = (data[i] << 2) + (data[lastbyte] &0x3);	i++;
 			}
 			i+=skip_bytes;
 		}
