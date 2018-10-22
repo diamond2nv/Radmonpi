@@ -38,7 +38,9 @@ And then install with:
 	$ cd Radmonpi; make
 
 ## Usage
-TODO
+
+### Mask_generator
+
 
 ## Bokeh server
 The software also includes a [bokeh](https://bokeh.pydata.org/en/latest/) script in orden to visualize the data through the browser
