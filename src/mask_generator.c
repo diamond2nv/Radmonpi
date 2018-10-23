@@ -529,6 +529,24 @@ void unpackedAndSave(MMAL_BUFFER_HEADER_T *buffer, char *filename_up, RASPIRAW_P
 	}
 }
 
+double mean_value_skiping(const uint16_t *imagen_actual, RASPIRAW_PARAMS_T * cfg,unsigned int skiping){
+	int i=0;
+	uint32_t len=cfg->width*cfg->height;
+	uint64_t sum= 0;
+	if (!skiping){
+		for(i=0;i<len;i++)
+			sum += imagen_actual[i];
+	} else {
+		for(i=0;i<len;i+=skiping+1)
+			sum += imagen_actual[i];
+	}
+	return sum*(double)(skiping+1)/len;
+}
+
+double mean_value(const uint16_t *imagen_actual, RASPIRAW_PARAMS_T * cfg){
+	return mean_value_skiping(imagen_actual,cfg,0);
+}
+
 uint16_t *unpackedAndCopy(MMAL_BUFFER_HEADER_T *buffer, RASPIRAW_PARAMS_T * cfg)
 {
 	int i,k=0;
@@ -663,6 +681,12 @@ static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 			
 			// Descartar los primeros frames (A veces tienen basura)
 			if(contador_imagenes > 2){
+				if (cfg->showtime){
+					if (time_last_call!=0)
+						fprintf(stderr, "Total time:\t%Lu ms\n",currentTimeMillis() - time_last_call);
+					time_last_call = currentTimeMillis();
+				}
+
 				if (cfg->showtime) previousTime = currentTimeMillis();
 				imagen_actual = unpackedAndCopy(buffer,cfg);
 				if (cfg->showtime) fprintf(stderr, "\tIt took me\t%Lu ms\tto copy an image\n", currentTimeMillis() - previousTime);
@@ -677,12 +701,20 @@ static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 
 				if (cfg->showtime) fprintf(stderr, "\tIt took me\t%Lu ms\tto process an image\n", currentTimeMillis() - previousTime);
 				
-				if (cfg->showtime){
-						if (time_last_call!=0)
-							fprintf(stderr, "Total time:\t%Lu ms\n",currentTimeMillis() - time_last_call);
-						time_last_call = currentTimeMillis();
+				if (cfg->debug){
+					pixel_rand = rand()%(cfg->width*cfg->height);
+					fprintf(stderr, "\timg[%u,%u]=%u\n",pixel_rand%cfg->width, pixel_rand/cfg->width, imagen_actual[pixel_rand]);
+				}
+
+				if (cfg->debug >= 2){
+					fprintf(stderr, "\tMean Value: %lf\n",mean_value(imagen_actual, cfg));
+					if (cfg->debug >=3 && cfg->showtime){
+						previousTime = currentTimeMillis();
+						int j;
+						for(j=0; j<cfg->width*cfg->height; j++);
+						fprintf(stderr, "\tIt took me\t%Lu ms\tto make a dummy for\n",currentTimeMillis() - previousTime);
 					}
-				if (cfg->debug) fprintf(stderr, "img[500,503]=%u\n",imagen_actual[500+503*cfg->width]);
+				}
 
 				free(imagen_actual);
 			}
