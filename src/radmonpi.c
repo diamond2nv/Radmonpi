@@ -670,9 +670,10 @@ int maskgen(uint32_t ** mask, char * filename, RASPIRAW_PARAMS_T * cfg){
 	uint16_t x,y;
 	while(i<size){
 		fgets(buffer, MAX_BUFFER_SIZE, file);
-		if (feof(file))
+		if (feof(file)) {
 			fprintf(stderr, "ERROR: Unexpected feof of the file\n");
 			return -3;
+		}
 		if ('0' <= buffer[0] && buffer[0] <= '9') {
 			sscanf(buffer, "%hu\t%hu",&x,&y);
 			(*mask)[i] = x+y*cfg->width;
