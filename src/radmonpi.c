@@ -625,7 +625,7 @@ uint16_t *unpackedAndCopy(MMAL_BUFFER_HEADER_T *buffer, RASPIRAW_PARAMS_T * cfg)
 	}
 	else
 	{
-		fprintf(stderr,"FIXME: bit_depth != 10 isn't supported yet");
+		fprintf(stderr,"FIXME: bit_depth != 10 isn't supported yet\n");
 		return NULL;
 	}
 	return img;
@@ -640,39 +640,44 @@ uint32_t *imagen_mask = NULL;
  * @param cfg The set of parameters and the configuration used.
  * @return The number of element in the mask (negative if an error occurs).
  */
-#define MAX_BUFFER_SIZE 1024
+#define MAX_BUFFER_SIZE 2048
 int maskgen(uint32_t ** mask, char * filename, RASPIRAW_PARAMS_T * cfg){
 	// Determino el número de elementos de la máscara.
 	int size = 0;
 	char buffer[MAX_BUFFER_SIZE];
 	FILE *file = fopen(filename,"r");
 	if (file == NULL) {
-		fprintf(stderr, "The mask file cannot be opened\n");
+		fprintf(stderr, "WARNING: The mask file cannot be opened\n");
+		(*mask) = NULL;
 		return -1;
 	}
 
 	while(!feof(file)) {
-  		do {
-			fgets(buffer, MAX_BUFFER_SIZE, file);
-		} while (buffer[0] != '#' && buffer[0]!='\n' && !feof(file));
-		size++;
+		fgets(buffer, MAX_BUFFER_SIZE, file);
+		if ('0' <= buffer[0] && buffer[0] <= '9') {
+			size++;
+		}
 	}
 
 	*mask = (uint32_t *)malloc((size+1)*sizeof(uint32_t));
 	if (*mask == NULL) {
-		fprintf(stderr, "Cannot alloc memory for the mask\n");
+		fprintf(stderr, "ERROR: Cannot alloc memory for the mask\n");
 		return -2;
 	}
 
 	rewind(file);
-	int i;
+	int i =0;
 	uint16_t x,y;
-	for(i=0;i<size;i++){
-		do {
-			fgets(buffer, MAX_BUFFER_SIZE, file);
-		} while (buffer[0] != '#' && buffer[0]!='\n' && !feof(file));
-		sscanf(buffer, "%hu\t%hu",&x,&y);
-		(*mask)[i] = x+y*cfg->width;
+	while(i<size){
+		fgets(buffer, MAX_BUFFER_SIZE, file);
+		if (feof(file))
+			fprintf(stderr, "ERROR: Unexpected feof of the file\n")
+			return -3;
+		if ('0' <= buffer[0] && buffer[0] <= '9') {
+			sscanf(buffer, "%hu\t%hu",&x,&y);
+			(*mask)[i] = x+y*cfg->width;
+			i++;
+		}
 	}
 	(*mask)[i]=cfg->width*cfg->height;			/// The last value is away from the array
 	
@@ -1865,7 +1870,7 @@ int main(int argc, char** argv) {
 		/// TODO: Implementar lo de la máscara!
 		if (cfg.loadmask != NULL) {
 			int mask_size = maskgen(&imagen_mask, cfg.loadmask, &cfg);
-			if (cfg.debug) fprintf(stderr, "The mask has \t %d\t pixels",mask_size);
+			if (cfg.debug) fprintf(stderr, "The mask has \t %d\t pixels\n",mask_size);
 		} else {
 			if (cfg.debug) fprintf(stderr, "A mask wasn't provided. Try using -mask /path/to/mask\n");
 		}
