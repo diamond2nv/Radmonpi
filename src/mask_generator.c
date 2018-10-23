@@ -702,7 +702,7 @@ static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 				if (cfg->showtime) fprintf(stderr, "\tIt took me\t%Lu ms\tto process an image\n", currentTimeMillis() - previousTime);
 				
 				if (cfg->debug){
-					pixel_rand = rand()%(cfg->width*cfg->height);
+					uint32_t pixel_rand = rand()%(cfg->width*cfg->height);
 					fprintf(stderr, "\timg[%u,%u]=%u\n",pixel_rand%cfg->width, pixel_rand/cfg->width, imagen_actual[pixel_rand]);
 				}
 
