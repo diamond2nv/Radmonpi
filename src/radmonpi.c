@@ -654,7 +654,7 @@ int maskgen(uint32_t ** mask, char * filename, RASPIRAW_PARAMS_T * cfg){
 	while(!feof(file)) {
   		do {
 			fgets(buffer, MAX_BUFFER_SIZE, file);
-		} while (buffer[0] != '#' && !feof(file));
+		} while (buffer[0] != '#' && buffer[0]!='\n' && !feof(file));
 		size++;
 	}
 
@@ -670,7 +670,7 @@ int maskgen(uint32_t ** mask, char * filename, RASPIRAW_PARAMS_T * cfg){
 	for(i=0;i<size;i++){
 		do {
 			fgets(buffer, MAX_BUFFER_SIZE, file);
-		} while (buffer[0] != '#' && !feof(file));
+		} while (buffer[0] != '#' && buffer[0]!='\n' && !feof(file));
 		sscanf(buffer, "%hu\t%hu",&x,&y);
 		(*mask)[i] = x+y*cfg->width;
 	}

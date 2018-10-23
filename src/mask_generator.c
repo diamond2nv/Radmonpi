@@ -1741,9 +1741,11 @@ component_destroy:
 			printf("%"PRId64"\n",sum_value[j+i*cfg.width]/pixel_counter[j+i*cfg.width]);
 		}
 	} else {
+		printf("#");
+		for (i=0; i<argc;i++) printf("%s ", argv[i]);
 		for (i=0; i<cfg.height*cfg.width; i++)
 			if (pixel_counter[i]>=cfg.ntoSave)
-				printf("%u\t%u\t%u\t%"PRId64"\n",i%cfg.width, i/cfg.width, pixel_counter[i],sum_value[i]/pixel_counter[i]);
+				printf("\n%u\t%u\t%u\t%"PRId64 ,i%cfg.width, i/cfg.width, pixel_counter[i],sum_value[i]/pixel_counter[i]);
 	}
 
 	free(sum_value);
