@@ -1864,7 +1864,8 @@ int main(int argc, char** argv) {
 		/// By radmonpi++
 		/// TODO: Implementar lo de la máscara!
 		if (cfg.loadmask != NULL) {
-			maskgen(&imagen_mask, cfg.loadmask, &cfg);
+			int mask_size = maskgen(&imagen_mask, cfg.loadmask, &cfg);
+			if (cfg.debug) fprintf(stderr, "The mask has \t %d\t pixels",mask_size);
 		} else {
 			if (cfg.debug) fprintf(stderr, "A mask wasn't provided. Try using -mask /path/to/mask\n");
 		}
