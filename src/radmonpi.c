@@ -1905,7 +1905,7 @@ int main(int argc, char** argv) {
 
 	start_camera_streaming(sensor, sensor_mode);
 
-	if (cfg.timeout>=0)
+	if (cfg.timeout==0)
 		cfg.timeout= -1;
 	vcos_sleep(cfg.timeout*1000);
 	running = 0;
