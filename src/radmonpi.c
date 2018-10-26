@@ -53,6 +53,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "raw_header.h"
 #include <math.h>
 #include <inttypes.h>
+#include <signal.h>
+#include "histogram.h"
+
 #define DEFAULT_I2C_DEVICE 0
 #define I2C_DEVICE_NAME_LEN 13	// "/dev/i2c-XXX"+NULL
 
@@ -131,12 +134,15 @@ struct sensor_def
 
 int64_t previousTime;
 int64_t currentTimeMillis() {
-  struct timeval time;
-  gettimeofday(&time, NULL);
-  int64_t s1 = (int64_t)(time.tv_sec) * 1000;
-  int64_t s2 = (time.tv_usec / 1000);
-  return s1 + s2;
+	struct timeval time;
+	gettimeofday(&time, NULL);
+	int64_t s1 = (int64_t)(time.tv_sec) * 1000;
+	int64_t s2 = (time.tv_usec / 1000);
+	return s1 + s2;
 }
+
+Histogram_t charge_histo = DEFAULT_HISTO;	
+Histogram_t size_histo = DEFAULT_HISTO;		// TODO: Implement
 
 #define NUM_ELEMENTS(a)  (sizeof(a) / sizeof(a[0]))
 
@@ -192,7 +198,9 @@ enum {
 	CommandSaturationValue,
 	CommandDebug,
 	CommandShowTime,
-	CommandLoadMask
+	CommandLoadMask,
+	CommandChargeHisto,
+	CommandSizeHisto
 };
 
 static COMMAND_LIST cmdline_commands[] =
@@ -235,7 +243,9 @@ static COMMAND_LIST cmdline_commands[] =
 	{ CommandSaturationValue, "-satvalue", "sat", "The value of a pixel to be count as saturated. Def: 1023", 1023},
 	{ CommandShowTime, "-showtime", "showt", "Display the time that takes every action", 0},
 	{ CommandDebug, "-debug", "d", "Tool to debug the code", 0},
-	{ CommandLoadMask, "-loadmask", "mask", "Load a txt file with all the files to avoid scanning (x\\t y \\n...)", 0}
+	{ CommandLoadMask, "-loadmask", "mask", "Load a txt file with all the files to avoid scanning (x\\t y \\n...)", 0},
+	{ CommandChargeHisto, "--chargehisto", "ch", "Path to save the charge histogram. Def: (No save)", 0},
+	{ CommandSizeHisto, "--sizehisto", "sh", "Path to save the charge histogram. Def: (No save)", 0},
 };
 
 static int cmdline_commands_size = sizeof(cmdline_commands) / sizeof(cmdline_commands[0]);
@@ -290,6 +300,8 @@ typedef struct {
 	uint8_t debug;
 	char *loadmask;
 	const struct sensor_def *sensor;	// El sensor utilizando
+	char *savechargehistogram;
+	char *savesizehistogram;
 } RASPIRAW_PARAMS_T;
 
 void update_regs(const struct sensor_def *sensor, struct mode_def *mode, int hflip, int vflip, int exposure, int gain);
@@ -824,6 +836,9 @@ int detectarEventos(const uint16_t *img_actual, const uint16_t *img_anterior,
 				center_y /= charge;
 				printf("%.2f\t%u\t%u\t%u\t%.2f\t%.2f\n", (double)(currentTimeMillis() - timereference)/1000, 
 							size, nsatPixels, charge, center_x, center_y);
+				
+				if (cfg->savechargehistogram) histo_add(&charge_histo,charge);
+				if (cfg->savesizehistogram) histo_add(&size_histo,size);
 
 				if (cfg->evsave && cfg->evsave[0]) {
 					//Grabo las imágenes	FIXME: actualmente utilizo la dirección /dev/shm/. 
@@ -1359,7 +1374,7 @@ static int parse_cmdline(int argc, char **argv, RASPIRAW_PARAMS_T *cfg)
 
 			case CommandShowTime:
 				//if (sscanf(argv[i + 1], "%" SCNu8, &cfg->showtime) != 1)
-					cfg->showtime = 1;
+				cfg->showtime = 1;
 				//	valid = 0;
 				//else
 				//	i++;
@@ -1374,6 +1389,16 @@ static int parse_cmdline(int argc, char **argv, RASPIRAW_PARAMS_T *cfg)
 
 			case CommandLoadMask:
 				cfg->loadmask = argv[i + 1];
+				i++;
+				break;
+
+			case CommandChargeHisto:
+				cfg->savechargehistogram = argv[i + 1];
+				i++;
+				break;
+
+			case CommandSizeHisto:
+				cfg->savesizehistogram = argv[i + 1];
 				i++;
 				break;
 
@@ -1404,12 +1429,28 @@ enum operation {
 
 void modReg(struct mode_def *mode, uint16_t reg, int startBit, int endBit, int value, enum operation op);
 
+RASPIRAW_PARAMS_T cfg = { 0 };
+
+void INThandler(int sig)
+{
+	if (cfg.debug)
+		fprintf(stderr,"\rAborting process\n");
+
+    if (cfg.savechargehistogram)
+		if (fprint_histo(cfg.savechargehistogram, charge_histo)	!= 0)
+			fprintf(stderr,"ERROR: Couldn't save charge histogram\n");
+
+	if (cfg.savesizehistogram)
+		if (fprint_histo(cfg.savesizehistogram, size_histo)	!= 0)
+			fprintf(stderr,"ERROR: Couldn't save charge histogram\n");
+	
+	exit(0);
+}
+
 int main(int argc, char** argv) {
-	RASPIRAW_PARAMS_T cfg = { 0 };
 	uint32_t encoding;
 	const struct sensor_def *sensor;
 	struct mode_def *sensor_mode = NULL;
-
 	//Initialise any non-zero config values.
 	cfg.mode = 3;
 	cfg.exposure = -1;
@@ -1441,6 +1482,8 @@ int main(int argc, char** argv) {
 
 	imagen_anterior = NULL;
 	imagen_actual = NULL;
+
+	signal(SIGINT, INThandler);
 
 	bcm_host_init();
 	vcos_log_register("RaspiRaw", VCOS_LOG_CATEGORY);
@@ -2115,4 +2158,3 @@ void update_regs(const struct sensor_def *sensor, struct mode_def *mode, int hfl
 		}
 	}
 }
-
