@@ -953,10 +953,20 @@ static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 					detectarEventos(imagen_actual, imagen_anterior, timestamp_inicial, cfg);
 					free(imagen_anterior);
 					
-					
 					if (cfg->showtime)
 						fprintf(stderr, "\tIt took me\t%Lu ms\tto process an image\n",currentTimeMillis() - time_last_call);
 					
+					if (cfg->showtime)
+						previousTime = currentTimeMillis();
+					if (cfg->savechargehistogram)
+						if (fprint_histo(cfg->savechargehistogram, charge_histo)	!= 0)
+							fprintf(stderr,"ERROR: Couldn't save charge histogram\n");
+					if (cfg->savesizehistogram)
+						if (fprint_histo(cfg->savesizehistogram, size_histo)	!= 0)
+							fprintf(stderr,"ERROR: Couldn't save charge histogram\n");
+					if (cfg->showtime)
+						fprintf(stderr, "\tIt took me\t%Lu ms\tto save the histograms\n",currentTimeMillis() - previousTime);
+
 					if (cfg->debug >= 2){
 						if (cfg->debug >=3 && cfg->showtime){
 							previousTime = currentTimeMillis();

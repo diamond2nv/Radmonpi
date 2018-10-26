@@ -1063,7 +1063,7 @@ struct mode_def ov5647_modes[] = {
    },
    {
       .regs          = ov5647_mode_fabri,
-      .num_regs      = NUM_ELEMENTS(ov5647_modefabri),
+      .num_regs      = NUM_ELEMENTS(ov5647_mode_fabri),
       .width         = 2592,
       .height        = 1944,
       .encoding      = 0,
