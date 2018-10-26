@@ -797,7 +797,7 @@ int detectarEventos(const uint16_t *img_actual, const uint16_t *img_anterior,
 
 	if (cfg->showtime) previousTime = currentTimeMillis();
 	restaImagen(img_copy, img_anterior, cfg);
-	if (cfg->showtime) fprintf(stderr, "\tIt took me\t%Lu ms\tto substract an Image\n", currentTimeMillis() - previousTime);
+	  if (cfg->showtime) fprintf(stderr, "\tIt took me\t%Lu ms\tto substract an Image\n", currentTimeMillis() - previousTime);
 
 	if (cfg->loadmask != NULL) {
 		if (cfg->showtime) previousTime = currentTimeMillis();
@@ -865,7 +865,6 @@ int detectarEventos(const uint16_t *img_actual, const uint16_t *img_anterior,
 					min_y -= (min_y>cfg->evextend ? cfg->evextend : min_y );
 					max_x = (min_x+cfg->evextend>=cfg->width  ? cfg->width-1  : max_x+cfg->evextend );
 					max_y = (min_y+cfg->evextend>=cfg->height ? cfg->height-1 : max_y+cfg->evextend );
-					//printf(saving, "#%d x %d\n", max_x-min_x+1, max_y-min_y+1)
 					fprintf(saving, "P2\n%d %d\n%d\n", max_x-min_x+1, max_y-min_y+1,1023);
 					fprintf(saving, "#Time\tSize\tCharge\tOrigin_x\tOrigin_y\tCenter_x\tCenter_y\tThreshold\n");
 					fprintf(saving, "#%.3f\t%u\t%u\t%u\t%u\t%.3f\t%.3f\t%u\n",
@@ -893,7 +892,7 @@ int detectarEventos(const uint16_t *img_actual, const uint16_t *img_anterior,
 int running = 0;
 uint16_t *imagen_anterior = NULL;
 uint16_t *imagen_actual = NULL;
-uint64_t timestamp_inicial;
+uint64_t time_first_call = 0;
 uint64_t time_last_call = 0;
 static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 {
@@ -940,7 +939,7 @@ static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 			if(contador_imagenes > 2){
 				if (imagen_anterior == NULL){ 					// Si es la primera imagen
 					imagen_anterior = unpackedAndCopy(buffer,cfg);
-					timestamp_inicial = currentTimeMillis();
+					time_first_call = currentTimeMillis();
 				}
 				else   											// Ya hay dos imagenes
 				{
@@ -949,8 +948,9 @@ static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 							fprintf(stderr, "Total time:\t%Lu ms\n",currentTimeMillis() - time_last_call);
 						time_last_call = currentTimeMillis();
 					}
+					
 					imagen_actual = unpackedAndCopy(buffer,cfg);
-					detectarEventos(imagen_actual, imagen_anterior, timestamp_inicial, cfg);
+					detectarEventos(imagen_actual, imagen_anterior, time_first_call, cfg);
 					free(imagen_anterior);
 					
 					if (cfg->showtime)
@@ -964,7 +964,7 @@ static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 					if (cfg->savesizehistogram)
 						if (fprint_histo(cfg->savesizehistogram, size_histo)	!= 0)
 							fprintf(stderr,"ERROR: Couldn't save charge histogram\n");
-					if (cfg->showtime)
+					if (cfg->showtime && (cfg->savesizehistogram || cfg->savechargehistogram))
 						fprintf(stderr, "\tIt took me\t%Lu ms\tto save the histograms\n",currentTimeMillis() - previousTime);
 
 					if (cfg->debug >= 2){
@@ -1453,6 +1453,11 @@ void INThandler(int sig)
 	if (cfg.savesizehistogram)
 		if (fprint_histo(cfg.savesizehistogram, size_histo)	!= 0)
 			fprintf(stderr,"ERROR: Couldn't save charge histogram\n");
+	
+	if (time_first_call != 0)
+		fprintf(stderr, "Total exposure time: %Lu ms\n", time_last_call - time_first_call);
+	else
+		fprintf(stderr, "WARNING: No image were taken\n");
 	
 	exit(0);
 }
