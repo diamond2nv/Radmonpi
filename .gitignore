@@ -4,11 +4,13 @@ obj/
 test/
 events/
 
-webserver/events.dat
+webserver/*.histo
+webserver/*.dat
+webserver/*.csv
 webserver/events/
 webserver/__pycache__
 
-mask/
+masks/
 
 .directory
-.vscode
+.vscode/
