@@ -836,6 +836,7 @@ int detectarEventos(const uint16_t *img_actual, const uint16_t *img_anterior,
 				center_y /= charge;
 				printf("%.2f\t%u\t%u\t%u\t%.2f\t%.2f\n", (double)(currentTimeMillis() - timereference)/1000, 
 							size, nsatPixels, charge, center_x, center_y);
+				fflush(stdout);
 				
 				if (cfg->savechargehistogram) histo_add(&charge_histo,charge);
 				if (cfg->savesizehistogram) histo_add(&size_histo,size);
