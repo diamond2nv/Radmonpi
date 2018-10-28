@@ -636,7 +636,7 @@ int running = 0;
 uint16_t *imagen_actual = NULL;
 uint32_t *pixel_counter;
 uint64_t *sum_value;
-uint64_t timestamp_inicial;
+uint64_t time_first_call;
 uint64_t time_last_call = 0;
 static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 {
@@ -680,6 +680,8 @@ static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 			if (cfg->debug) fprintf(stderr,"Foto %i\t", contador_imagenes);		// Ex - Begin clara
 			
 			// Descartar los primeros frames (A veces tienen basura)
+			if(contador_imagenes == 3)
+				time_first_call = currentTimeMillis();
 			if(contador_imagenes > 2){
 				if (cfg->showtime){
 					if (time_last_call!=0)
@@ -1132,8 +1134,44 @@ enum operation {
 
 void modReg(struct mode_def *mode, uint16_t reg, int startBit, int endBit, int value, enum operation op);
 
+RASPIRAW_PARAMS_T cfg = { 0 };
+void INThandler(int sig)
+{
+	int i;
+	uint64_t nBadPixels = 0;
+	for (i=0; i<cfg.height*cfg.width; i++)
+		if (pixel_counter[i]>=cfg.ntoSave)
+			nBadPixels++;
+
+	fprintf(stderr, "Found\t%" PRId64 "\tbad pixels\n",nBadPixels);
+
+	if (cfg.matrix){
+		int j;
+		printf("P2\n%u\t%u\n%u\n",cfg.width,cfg.height,(1<<cfg.bit_depth)-1);
+		for(i=0;i<cfg.height;i++) {
+			for(j=0;j<cfg.width-1;j++) {
+				printf("%"PRId64"\t",sum_value[j+i*cfg.width]/pixel_counter[j+i*cfg.width]);
+			}
+			printf("%"PRId64"\n",sum_value[j+i*cfg.width]/pixel_counter[j+i*cfg.width]);
+		}
+	} else {
+		for (i=0; i<cfg.height*cfg.width; i++)
+			if (pixel_counter[i]>=cfg.ntoSave)
+				printf("\n%u\t%u\t%u\t%"PRId64 ,i%cfg.width, i/cfg.width, pixel_counter[i],sum_value[i]/pixel_counter[i]);
+	}
+
+	free(sum_value);
+	free(pixel_counter);
+	
+	if (time_last_call != 0)
+		fprintf(stderr, "Total exposure time: %Lu ms\n", time_last_call - time_first_call);
+	else
+		fprintf(stderr, "WARNING: No image were taken\n");
+	
+	exit(0);
+}
+
 int main(int argc, char** argv) {
-	RASPIRAW_PARAMS_T cfg = { 0 };
 	uint32_t encoding;
 	const struct sensor_def *sensor;
 	struct mode_def *sensor_mode = NULL;
@@ -1164,6 +1202,8 @@ int main(int argc, char** argv) {
 	//cfg.regs = default_regs;
 
 	imagen_actual = NULL;
+
+	signal(SIGINT, INThandler);
 
 	bcm_host_init();
 	vcos_log_register("RaspiRaw", VCOS_LOG_CATEGORY);
@@ -1592,7 +1632,6 @@ int main(int argc, char** argv) {
 		}
 
 		/// By radmonpi++
-		/// TODO: Implementar lo de la máscara!
 		pixel_counter = (uint32_t *)malloc(cfg.width*cfg.height*sizeof(uint32_t));
 		if (pixel_counter == NULL) {fprintf(stderr, "Couldn't alloc memory"); return -1;}
 		sum_value = (uint64_t *)malloc(cfg.width*cfg.height*sizeof(uint64_t));

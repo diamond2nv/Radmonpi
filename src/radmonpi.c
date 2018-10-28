@@ -1455,7 +1455,7 @@ void INThandler(int sig)
 		if (fprint_histo(cfg.savesizehistogram, size_histo)	!= 0)
 			fprintf(stderr,"ERROR: Couldn't save charge histogram\n");
 	
-	if (time_first_call != 0)
+	if (time_last_call != 0)
 		fprintf(stderr, "Total exposure time: %Lu ms\n", time_last_call - time_first_call);
 	else
 		fprintf(stderr, "WARNING: No image were taken\n");

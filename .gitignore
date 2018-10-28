@@ -3,6 +3,7 @@ obj/
 
 test/
 events/
+tmp/
 
 webserver/*.histo
 webserver/*.dat
