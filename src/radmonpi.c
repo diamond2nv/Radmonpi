@@ -26,7 +26,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#define VERSION_STRING "0.0.2"
+#define VERSION_STRING "2.0.1"
 #define _GNU_SOURCE
 #include <ctype.h>
 #include <fcntl.h>
@@ -245,7 +245,7 @@ static COMMAND_LIST cmdline_commands[] =
 	{ CommandDebug, "-debug", "d", "Tool to debug the code", 0},
 	{ CommandLoadMask, "-loadmask", "mask", "Load a txt file with all the files to avoid scanning (x\\t y \\n...)", 0},
 	{ CommandChargeHisto, "--chargehisto", "ch", "Path to save the charge histogram. Def: (No save)", 0},
-	{ CommandSizeHisto, "--sizehisto", "sh", "Path to save the charge histogram. Def: (No save)", 0},
+	{ CommandSizeHisto, "--sizehisto", "sh", "Path to save the size histogram. Def: (No save)", 0},
 };
 
 static int cmdline_commands_size = sizeof(cmdline_commands) / sizeof(cmdline_commands[0]);
@@ -1468,7 +1468,7 @@ int main(int argc, char** argv) {
 	const struct sensor_def *sensor;
 	struct mode_def *sensor_mode = NULL;
 	//Initialise any non-zero config values.
-	cfg.mode = 3;
+	cfg.mode = 8;			//Initialing in mode_fabri or mode_fritz
 	cfg.exposure = -1;
 	cfg.gain = -1;
 	cfg.timeout = 0;
@@ -1506,7 +1506,7 @@ int main(int argc, char** argv) {
 
 	if (argc == 1)
 	{
-		fprintf(stderr, "\n%s Camera App %s\n\n", basename(argv[0]), VERSION_STRING);
+		fprintf(stderr, "\n%s Radiation Monitor App %s\n\n", basename(argv[0]), VERSION_STRING);
 
 		raspicli_display_help(cmdline_commands, cmdline_commands_size);
 		exit(-1);

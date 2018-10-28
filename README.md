@@ -39,12 +39,127 @@ And then install with:
 
 ## Usage
 
+### Radmonpi
+To use the CLI radmonpi first you need to run the _camera_i2c_ program inside the folder. Make sure that both _camera_i2c_ and _rpi3-gpiovirtbuf_ has execute permission (in case it doesn't just use _chmod +x camera_i2c rpi3-gpiovirtbuf_).
+
+#### Commands for radmonpi
+	radmonpi Radiation Monitor App 2.0.1
+
+	-?, --help      : This help information
+	-md, --mode     : Set sensor mode <mode>. Def: 8
+	-hf, --hflip    : Set horizontal flip
+	-vf, --vflip    : Set vertical flip
+	-e, --ss        : Set the sensor exposure time (not calibrated units)
+	-g, --gain      : Set the sensor gain code (not calibrated units)
+	-o, --output    : Set the output filename
+	-hd, --header   : Write the BRCM header to the output file
+	-t, --timeout   : Time (in seconds) before shutting down (if not specified, it runs forever)
+	-sr, --saverate : Save every Nth frame
+	-b, --bitdepth  : Set output raw bit depth (8, 10, 12 or 16, if not specified, set to sensor native)
+	-c, --cameranum : Set camera number to use (0=CAM0, 1=CAM1).
+	-eus, --expus   : Set the sensor exposure time in micro seconds.
+	-y, --i2c       : Set the I2C bus to use.
+	-awbg, --awbgains       : Set the AWB gains to use.
+	-r, --regs      : Change (current mode) regs
+	-hi, --hinc     : Set horizontal odd/even inc reg
+	-vi, --vinc     : Set vertical odd/even inc reg
+	-f, --fps       : Set framerate regs
+	-w, --width     : Set current mode width
+	-h, --height    : Set current mode height
+	-lt, --left     : Set current mode left
+	-tp, --top      : Set current mode top
+	-hd0, --header0 : Sets filename to write the BRCM header to
+	-hdg, --headerg : Sets filename to write the .pgm header to
+	-ts, --tstamps  : Sets filename to write timestamps to
+	-emp, --empty   : Write empty output files
+	-m, --metadata  : Decode register metadata
+	-evth, --evthres        : Set threshold to stop adding pixel to an event. Def: 300
+	-evs, --evsave  : Path to save files. Def: (No save)
+	-eva, --evarea  : Set area threshold of events. Def: 1
+	-evtr, --evtrigger      : Set trigger to detect an event. Def: 400
+	-eve, --evextend        : Extend the borders at saving images. Def: 2
+	-sat, --satvalue        : The value of a pixel to be count as saturated. Def: 1023
+	-showt, --showtime      : Display the time that takes every action
+	-d, --debug     : Tool to debug the code
+	-mask, --loadmask       : Load a txt file with all the files to avoid scanning (x\t y \n...)
+	-ch, ---chargehisto     : Path to save the charge histogram. Def: (No save)
+	-sh, ---sizehisto       : Path to save the size histogram. Def: (No save)
+
+I know, there is a lot of commands that you could use but if you need a particular configuration you could simply make a shell script.
+
+There are a lot of Command deprecated in this version (they are part of the raspiraw app) and they are going to be completely removed from future releases.
+
+#### Interpreting the output
+The standard output is going to have all the information of the events. Each line represent a single event.
+Every event is a cluster of pixels that one is greater than "trigger" and the rest are greater than "threshold":
+
+	Time	Size	Sat_pixels	Charge	Center_x	Center_y
+
+* __Time:__ the time [in seconds] taken beetween the start of the process and the detection of the event. Note that this is not the time in which a particle hit the sensor, instead is the time in which the app evaluate if those pixels are greater than the theshold value.
+* __Size:__ this is the number of pixels that has a value greater than threshold
+* __Sat_pixels:__ the number of pixels that are saturated (tipically has a value of 1023, but you could set the saturation value).
+* __Charge:__ the sum of the values of all the surrounding pixels who are greater than threshold.
+* __Center:__ both the x and the y component of the mass center of the event. This center is weigthed by the value of the pixel.
+
+There are other quantities that are interest to charactize an event and, perhaps, we could compute them in future releases.
+
+
+[//]: # "TODO:   #### Debug mode"
+
+[//]: # "TODO:   #### Showtime mode"
+
 ### Mask_generator
+If you have a lot of defective pixels, you need to create a mask of defective pixels to avoid scanning them in radmonpi.
+
+It has pretty much the same commands that radmonpi has, but there are a few differents. I will only list them
+
+	-th, --threshold        : Set threshold to stop adding pixel to an event. Def: 300
+	-n, --ntosave   : How many times a pixel should have value greater than threshold in order to save it Def: 5
+	-showt, --showtime      : Display the time that takes every action
+	-d, --debug     : Tool to debug the code
+	-matrix, --matrix       : Print the output in a matrix form (useful to take pictures)
 
 
-## Bokeh server
+### Bokeh server
 The software also includes a [bokeh](https://bokeh.pydata.org/en/latest/) script in orden to visualize the data through the browser
 
+To start the web server use
+
+	bokeh serve webserver --allow-websocket-origin '*'
+
+from the Radmonpi folder
+
+### Screenshot
+
+![Screenshot of webserver](screenshots/radmonpi_webserver.png)
+
+### Creating a Mask
+Before beginning the measure you could create a mask for defective pixels setting some parameters.
+The number of defective pixels are shown close to the "Update" button.
+You can also see the distribution of all defective pixels found.
+
+The parameters to set before creating a mask are:
+* __Gain:__ An adimensional number that indicates the gain of the sensor (it is not calibrated, yet)
+* __Detection Theshold:__ The only value that matters in this case is the lowest, this is the minimum value that a pixel has to have to be counted as defective.
+* __Timeout:__ The total time (in seconds) to create the mask.
+* __Theshold for frames:__ Probably the worst name of all, this meant to be the minimum number of frames that a pixel has to be greater than "Detection Threshold" to be counted as defective.
+
+### Begin the measurement
+To start the measument you need to set up all the parameters from the sliders
+
+* __Gain:__ An adimensional number that indicates the gain of the sensor (it is not calibrated, yet)
+* __Minimum size:__ This is the minimum size of a cluster of pixels in order to be counted as an event.
+* __Detection Theshold:__ The only value that matters in this case is the lowest, this is the minimum value that a pixel has to have to be counted as defective.
+
+__NOTE:__ If you change one value when a measument is taking place, this wouldn't be effective. You would need to restart the measument.
+
+__TODO:__ It would be nice if you could choose between "Overwrite" or "Append" but that would be difficult to implement in this stage.
+
+### Updating the plots
+The plots are not updating themselves. In order to update them you need to clic the "Update" button in the upper-right corner. This also update the text below that indicates the number of events and the number of pixels in the mask.
+
+### Viewing a particular event
+The last plot allows you the see a the pixels surrounding a particular event. You only need to write the number of the event you want to watch on the text field above.
 
 # Original radmonpi's README
 ## radmonpi: Radiation Monitor Using Raspberry Pi Camera
