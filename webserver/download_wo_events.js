@@ -34,12 +34,6 @@ addFile(zip, "charge.histo", static_path+"charge.histo");
 addFile(zip, "size.histo", static_path+"size.histo");
 addFile(zip, "mask_photo.histo", static_path+"mask_photo.histo");
 
-var i = 0;
-while(addFile(zip,"events/"+String(i)+".pgm",static_path+"events/"+String(i)+".pgm")){
-    i++;
-}
-i = 0;
-
 zip.generateAsync({type:"blob"})
 .then(function(content) {
     if (navigator.msSaveBlob) {

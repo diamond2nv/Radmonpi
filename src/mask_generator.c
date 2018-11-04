@@ -23,6 +23,7 @@
 #include "RaspiCLI.h"
 #include <sys/ioctl.h>
 #include "raw_header.h"
+#include "histogram.h"
 #include <math.h>
 #include <inttypes.h>
 #define DEFAULT_I2C_DEVICE 0
@@ -159,7 +160,8 @@ enum {
 	CommandDebug,
 	CommandShowTime,
 	CommandNToSave,
-	CommandMatrix
+	CommandMatrix,
+	CommandSavePixelHisto
 };
 
 static COMMAND_LIST cmdline_commands[] =
@@ -198,7 +200,8 @@ static COMMAND_LIST cmdline_commands[] =
 		"How many times a pixel should have value greater than threshold in order to save it Def: 5", 5},
 	{ CommandShowTime, "-showtime", "showt", "Display the time that takes every action", 0},
 	{ CommandDebug, "-debug", "d", "Tool to debug the code", 0},
-	{ CommandMatrix, "-matrix", "matrix", "Print the output in a matrix form (useful to take pictures)", 0}
+	{ CommandMatrix, "-matrix", "matrix", "Print the output in a matrix form (useful to take pictures)", 0},
+	{ CommandSavePixelHisto, "-pixelhisto", "ph", "Create a file with the histogram of all pixels", 0}
 };
 
 static int cmdline_commands_size = sizeof(cmdline_commands) / sizeof(cmdline_commands[0]);
@@ -247,6 +250,7 @@ typedef struct {
 	uint8_t showtime;
 	uint8_t debug;
 	uint8_t matrix;
+	char * savepixelhisto;
 	const struct sensor_def *sensor;	// El sensor utilizando
 } RASPIRAW_PARAMS_T;
 
@@ -611,17 +615,6 @@ uint16_t *unpackedAndCopy(MMAL_BUFFER_HEADER_T *buffer, RASPIRAW_PARAMS_T * cfg)
 }
 
 uint32_t *imagen_mask = NULL;
-/**	
- * @brief Fill an array with a mask of corrupt pixels from a file
- * 
- * @param mask The array to fill with pixel (each value is giving by x+y*cfg->width).
- * @param file The file that has the array of pixels. It has to be in the form of ("x	y\n").
- * @param cfg The set of parameters and the configuration used.
- * @return The number of element in the mask (negative if an error occurs).
- */
-
-#define HEIGHT 1944
-#define WIDTH 2592
 int contador_imagenes = 0;
 
 typedef struct {
@@ -638,6 +631,7 @@ uint32_t *pixel_counter;
 uint64_t *sum_value;
 uint64_t time_first_call;
 uint64_t time_last_call = 0;
+Histogram_t pixel_histo = DEFAULT_HISTO;
 static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 {
 	static int count = 0;
@@ -683,11 +677,10 @@ static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 			if(contador_imagenes == 3)
 				time_first_call = currentTimeMillis();
 			if(contador_imagenes > 2){
-				if (cfg->showtime){
+				if (cfg->showtime)
 					if (time_last_call!=0)
 						fprintf(stderr, "Total time:\t%Lu ms\n",currentTimeMillis() - time_last_call);
-					time_last_call = currentTimeMillis();
-				}
+				time_last_call = currentTimeMillis();
 
 				if (cfg->showtime) previousTime = currentTimeMillis();
 				imagen_actual = unpackedAndCopy(buffer,cfg);
@@ -695,11 +688,21 @@ static void callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer)
 
 				int i;
 				if (cfg->showtime) previousTime = currentTimeMillis();
-				for(i=0;i<cfg->width*cfg->height;i++)
-					if (imagen_actual[i]>=cfg->thres) {
-						pixel_counter[i]++;
-						sum_value[i] += imagen_actual[i];
+
+				if (cfg->savepixelhisto)
+					for(i=0;i<cfg->width*cfg->height;i++) {
+						if (imagen_actual[i]>=cfg->thres) {
+							pixel_counter[i]++;
+							sum_value[i] += imagen_actual[i];
+						}
+						histo_add(&pixel_histo,imagen_actual[i]);
 					}
+				else
+					for(i=0;i<cfg->width*cfg->height;i++)
+						if (imagen_actual[i]>=cfg->thres) {
+							pixel_counter[i]++;
+							sum_value[i] += imagen_actual[i];
+						}
 
 				if (cfg->showtime) fprintf(stderr, "\tIt took me\t%Lu ms\tto process an image\n", currentTimeMillis() - previousTime);
 				
@@ -923,6 +926,12 @@ static int parse_cmdline(int argc, char **argv, RASPIRAW_PARAMS_T *cfg)
 				else
 					valid = 0;
 				break;
+
+			case CommandSavePixelHisto:
+				cfg->savepixelhisto = argv[i + 1];
+				i++;
+				break;
+
 
 			case CommandBitDepth:
 				if (sscanf(argv[i + 1], "%u", &cfg->bit_depth) == 1)
@@ -1158,8 +1167,9 @@ void INThandler(int sig)
 		for (i=0; i<cfg.height*cfg.width; i++)
 			if (pixel_counter[i]>=cfg.ntoSave)
 				printf("\n%u\t%u\t%u\t%"PRId64 ,i%cfg.width, i/cfg.width, pixel_counter[i],sum_value[i]/pixel_counter[i]);
+		
 	}
-
+	fflush(stdout);
 	free(sum_value);
 	free(pixel_counter);
 	
@@ -1177,7 +1187,7 @@ int main(int argc, char** argv) {
 	struct mode_def *sensor_mode = NULL;
 
 	//Initialise any non-zero config values.
-	cfg.mode = 3;
+	cfg.mode = 8;
 	cfg.exposure = -1;
 	cfg.gain = -1;
 	cfg.timeout = 0;
@@ -1198,6 +1208,7 @@ int main(int argc, char** argv) {
 	cfg.debug = 0;
 	cfg.showtime = 0;
 	cfg.matrix = 0;
+	cfg.savepixelhisto = NULL;
 	//char default_regs[] = "380C,1F;380D,FF;380E,7F;380F,0F;3500,0F;3501,FF;3502,FF;3036,50;4000,00;5000,00";
 	//cfg.regs = default_regs;
 
@@ -1786,6 +1797,12 @@ component_destroy:
 			if (pixel_counter[i]>=cfg.ntoSave)
 				printf("\n%u\t%u\t%u\t%"PRId64 ,i%cfg.width, i/cfg.width, pixel_counter[i],sum_value[i]/pixel_counter[i]);
 	}
+
+	if (cfg.savepixelhisto)
+		if (fprint_histo(cfg.savepixelhisto, pixel_histo)	!= 0)
+			fprintf(stderr,"ERROR: Couldn't save charge histogram\n");
+
+	fflush(stdout);
 
 	free(sum_value);
 	free(pixel_counter);
