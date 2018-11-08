@@ -51,12 +51,28 @@ int fprint_histo(char * filename,Histogram_t histogram)
 
 int print_histo(Histogram_t histogram)
 {
+    int i =0;
+    printf("%u\t%u\n",i++,histogram.value[0]);
+    while(i<histogram.size){
+        printf("%u\t%u\n",i,histogram.value[i]);
+        if (histogram.value[i]==0 && histogram.value[i-1]!=0 && histogram.value[i+1] != 0)
+            //It's safe here because of the Short-Circuit-Evaluation. The last value is always non-null
+            printf("%u\t%u\n",i,histogram.value[i]);
+        printf("%u\t%u\n",i,0); // I'm going to put a nice null value at the end
+        i++;
+    }
+    return 0;
+}
+
+int print_all_histo(Histogram_t histogram)
+{
     int i;
     for(i=0;i<histogram.size;i++){
         printf("%u\t%u\n",i,histogram.value[i]);
     }
     return 0;
 }
+
 
 #undef type_t
 
