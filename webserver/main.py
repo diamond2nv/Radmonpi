@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import csv
 import os
 import subprocess
@@ -127,12 +128,12 @@ def update_mask():
     if os.path.exists(os.path.join(os.path.dirname(__file__),MASK_FILE)):
         try:
             with open(os.path.join(os.path.dirname(__file__),MASK_FILE),"r") as csv_file:
-                data =  np.genfromtxt(csv_file, delimiter='\t')
+                data = np.genfromtxt(csv_file, delimiter='\t')
             source_mask.data = dict(x=data[:,0], y=data[:,1], n=data[:,2], value=data[:,3])
         except:
             print("EXCEPTION found while updating mask.")
 
-p_mask.output_backend = "svg"
+p_mask.output_backend = "webgl"
 
 ########################
 ###    HISTO_PLOT    ###
@@ -142,7 +143,7 @@ p_mask.output_backend = "svg"
 p_photo_histo = figure(title="Histogram of ADV pixels in the mas", y_axis_type="log", y_range=(0.5, 10), tools="save,xpan,xwheel_zoom", active_scroll="xwheel_zoom")
 source_photo_histogram = ColumnDataSource(data=dict(x=[], y=[]))
 p_photo_histo.step('x','y',source=source_photo_histogram, mode="center")
-p_photo_histo.output_backend = "svg"
+p_photo_histo.output_backend = "webgl"
 
 def update_photo_source():
     global source_photo_histogram
@@ -157,7 +158,7 @@ def update_photo_source():
 p_charge_histo = figure(title="Charge histogram of events", y_axis_type="log", y_range=(0.5, 10), tools="save,xpan,xwheel_zoom", active_scroll="xwheel_zoom")
 source_charge_histogram = ColumnDataSource(data=dict(x=[], y=[]))
 p_charge_histo.step('x','y',source=source_charge_histogram, mode="center")
-p_charge_histo.output_backend = "svg"
+p_charge_histo.output_backend = "webgl"
 
 def update_charge_source():
     global source_charge_histogram
@@ -175,7 +176,7 @@ def update_charge_source():
 p_size_histo = figure(title="Histogram of sizes of events", y_axis_type="log", y_range=(0.5, 10), tools="save,xpan,xwheel_zoom", active_scroll="xwheel_zoom")
 source_size_histogram = ColumnDataSource(data=dict(x=[], y=[]))
 p_size_histo.step('x','y',source=source_size_histogram, mode="center")
-p_size_histo.output_backend = "svg"
+p_size_histo.output_backend = "webgl"
 
 def update_size_source():
     global source_size_histogram
@@ -219,7 +220,7 @@ p_event = figure(title="Event", x_range=(0,1), y_range=(0,1), tools="save,hover"
     tooltips=[("x", "$x{0}"), ("y", "$y{0}"), ("ADC Value", "@image"), ("Charge", "@charge"), ("Size", "@size")])
 source_image_event = ColumnDataSource(data=dict(x=[],y=[],dw=[],dh=[], image=[], charge=[], size=[]))
 p_event.image(image='image', source=source_image_event, x='x', y='y', dw='dw', dh='dh', color_mapper=LinearColorMapper(palette="Greys256",low=0,high=1023))
-p_event.output_backend = "svg"
+p_event.output_backend = "webgl"
 
 text_event = TextInput(value="[Insert index of event]", title="Number of event:")
 text_event.on_change('value', update_event)

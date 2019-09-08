@@ -49,7 +49,7 @@ int fprint_histo(char * filename,Histogram_t histogram)
     return 0;
 }
 
-int print_histo(Histogram_t histogram)
+int print_all_histo(Histogram_t histogram)
 {
     int i =0;
     printf("%u\t%u\n",i++,histogram.value[0]);
@@ -64,7 +64,7 @@ int print_histo(Histogram_t histogram)
     return 0;
 }
 
-int print_all_histo(Histogram_t histogram)
+int print_histo(Histogram_t histogram)
 {
     int i;
     for(i=0;i<histogram.size;i++){

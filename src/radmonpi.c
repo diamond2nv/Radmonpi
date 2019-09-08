@@ -200,7 +200,8 @@ enum {
 	CommandShowTime,
 	CommandLoadMask,
 	CommandChargeHisto,
-	CommandSizeHisto
+	CommandSizeHisto,
+	CommandMaxSize
 };
 
 static COMMAND_LIST cmdline_commands[] =
@@ -246,6 +247,7 @@ static COMMAND_LIST cmdline_commands[] =
 	{ CommandLoadMask, "-loadmask", "mask", "Load a txt file with all the files to avoid scanning (x\\t y \\n...)", 0},
 	{ CommandChargeHisto, "--chargehisto", "ch", "Path to save the charge histogram. Def: (No save)", 0},
 	{ CommandSizeHisto, "--sizehisto", "sh", "Path to save the size histogram. Def: (No save)", 0},
+	{ CommandMaxSize, "--maxsize", "evms", "Maximum size of an event (avoids stability issues). Def: 2048,", 2048}
 };
 
 static int cmdline_commands_size = sizeof(cmdline_commands) / sizeof(cmdline_commands[0]);
@@ -302,6 +304,7 @@ typedef struct {
 	const struct sensor_def *sensor;	// El sensor utilizando
 	char *savechargehistogram;
 	char *savesizehistogram;
+	int maxsize;
 } RASPIRAW_PARAMS_T;
 
 void update_regs(const struct sensor_def *sensor, struct mode_def *mode, int hflip, int vflip, int exposure, int gain);
@@ -712,9 +715,9 @@ void restaImagen(uint16_t *img_actual, const uint16_t *img_anterior, RASPIRAW_PA
 	for (i=0; i<cfg->height*cfg->width;i++){
 		img_actual[i] -= (img_actual[i] > img_anterior[i] ? img_anterior[i] : img_actual[i]);
 		//if (img_actual[i] > img_anterior[i])
-		//		img_actual[i] -= img_anterior[i];
-		//	else
-		//		img_actual[i] = 0;
+		//	img_actual[i] -= img_anterior[i];
+		//else
+		//	img_actual[i] = 0;
 	}
 	return;
 }
@@ -725,6 +728,7 @@ typedef struct {
 	int value;
 } coord_t;
 
+///	DEPRECATED	///
 #define MAX_SIZE cfg->width*cfg->height // Maximum size of an event (I wanted to avoid lists)
 int recursiveAddingto(coord_t * event, uint16_t *img_actual, uint16_t x, uint16_t y,
 						RASPIRAW_PARAMS_T *cfg, int * size)
@@ -732,23 +736,20 @@ int recursiveAddingto(coord_t * event, uint16_t *img_actual, uint16_t x, uint16_
 	uint8_t toFree=0;
 	if (size==NULL) {
 		size = (int *)malloc(sizeof(int));
-		*size = 0;
 		if (size==NULL) return 0;
+		*size = 0;
 		toFree=1;
-	}
-	if (*size>=MAX_SIZE) {
-		//free(size);
-		return 0;
 	}
 	if (img_actual[y*cfg->width+x]<cfg->evthres) return *size;
 
-	event[*size].value=img_actual[y*cfg->width+x];
-	//fprintf(stderr, "Agregando recursivamente:\t%u\t%u\t%u\t%u\n",*size,event[*size].value, x, y);
-	fflush(stderr);
+	if (*size > cfg->maxsize) {
+		event[*size].value=img_actual[y*cfg->width+x];
+		event[*size].x=x;
+		event[*size].y=y;
+	}
 	img_actual[y*cfg->width+x]=0;		// Apago el pixel para no agregarlo dos veces
-	event[*size].x=x;
-	event[*size].y=y;
 	(*size)++;
+
 	if (x<cfg->width)						recursiveAddingto(event, img_actual, x+1, y, cfg, size);	
 	if (x<cfg->width	&&	y<cfg->height)	recursiveAddingto(event, img_actual, x+1, y+1, cfg, size);
     if (					y<cfg->height)	recursiveAddingto(event, img_actual, x, y+1, cfg, size);	
@@ -758,8 +759,46 @@ int recursiveAddingto(coord_t * event, uint16_t *img_actual, uint16_t x, uint16_
     if (					y>0)			recursiveAddingto(event, img_actual, x, y-1, cfg, size);	
 	if (x<cfg->width	&&	y>0)			recursiveAddingto(event, img_actual, x+1, y-1, cfg, size);
 	int toReturn = *size;
-	if (toFree) { free(size); }
+	if (toFree) { 
+		if (*size > cfg->maxsize)
+			toReturn = -1;
+		free(size);
+	}
 	return toReturn;
+}
+
+int nonrecursiveAddingto(coord_t * event, uint16_t *img_actual, uint16_t x, uint16_t y, RASPIRAW_PARAMS_T *cfg) {
+	//  I asume it's greather than cfg->threshold.
+	event[0].value = img_actual[y*cfg->width+x];
+	event[0].x = x;
+	event[0].y = y;
+	img_actual[ y * cfg-> width + x ] = 0;
+
+	int i,j, coord_x, coord_y;
+	int size = 1, previoussize=0;
+	uint32_t added_order = 1;
+
+	while (added_order){
+		added_order = 0;
+		for(i=previoussize; i<size; i++){
+			for(j=0;j<9;j++){	// nine pixels in a 3x3
+				if (j==4) j++;	// in this case coord_x == event[i].x
+				coord_y = event[i].y - 1 + j/3;
+				coord_x = event[i].x - 1 + j%3;
+				if (0<=coord_x && coord_x < cfg->width && 0<=coord_y && coord_y < cfg->height)
+					if (img_actual[ coord_y * cfg-> width + coord_x ] >= cfg->evthres) {
+						event[size+added_order].value = img_actual[ coord_y * cfg-> width + coord_x ];
+						event[size+added_order].y = coord_y;
+						event[size+added_order].x = coord_x;
+						img_actual[ coord_y * cfg-> width + coord_x ] = 0;
+						added_order++;
+					}
+			}
+		}
+		previoussize=size;
+		size+=added_order;
+	}
+	return size;
 }
 
 double mean_value_skiping(const uint16_t *imagen_actual, RASPIRAW_PARAMS_T * cfg,unsigned int skiping){
@@ -797,7 +836,7 @@ int detectarEventos(const uint16_t *img_actual, const uint16_t *img_anterior,
 
 	if (cfg->showtime) previousTime = currentTimeMillis();
 	restaImagen(img_copy, img_anterior, cfg);
-	  if (cfg->showtime) fprintf(stderr, "\tIt took me\t%Lu ms\tto substract an Image\n", currentTimeMillis() - previousTime);
+	if (cfg->showtime) fprintf(stderr, "\tIt took me\t%Lu ms\tto substract an Image\n", currentTimeMillis() - previousTime);
 
 	if (cfg->loadmask != NULL) {
 		if (cfg->showtime) previousTime = currentTimeMillis();
@@ -814,12 +853,13 @@ int detectarEventos(const uint16_t *img_actual, const uint16_t *img_anterior,
 	for (i=0; i<cfg->height*cfg->width;i++){
 		if (img_copy[i]>cfg->evtrigger) {
 			// Creo un evento
-			coord_t * event = malloc(MAX_SIZE*sizeof(coord_t));
+			coord_t * event = malloc(cfg->width*cfg->height*sizeof(coord_t));
 			if (event == NULL) return -1;
 
-			size = recursiveAddingto(event,img_copy,i%cfg->width,i/cfg->width,cfg,NULL);
+			size = nonrecursiveAddingto(event,img_copy,i%cfg->width,i/cfg->width,cfg);
+			if  (size>cfg->maxsize) fprintf(stderr,"WARNING: Event size overflow\n");
 
-			if (size > cfg->evarea){
+			if (cfg->evarea <= size && size <= cfg->maxsize ){
 
 				//Calculo cosas a mostrar
 				uint16_t nsatPixels = 0;
@@ -873,13 +913,14 @@ int detectarEventos(const uint16_t *img_actual, const uint16_t *img_anterior,
 							size, charge, min_x, min_y, center_x, center_y,cfg->evthres);
 					for 	(y=min_y; y<=max_y; y++) {
 						for (x=min_x; x<max_x; x++) {
-							fprintf(saving, "%u\t", img_copy[x+y*cfg->width]);
+							fprintf(saving, "%u\t", img_actual[x+y*cfg->width]);
 						}
-						fprintf(saving, "%u\n", img_copy[x+y*cfg->width]);
+						fprintf(saving, "%u\n", img_actual[x+y*cfg->width]);
 						fflush(saving);
 					}
-					for(j=0;j<size;j++)
-						img_copy[event[j].x + event[j].y * cfg->width] = 0;
+					//FIXME: No me acuerdo por qué puse esto
+					//for(j=0;j<size;j++)
+					//	img_copy[event[j].x + event[j].y * cfg->width] = 0;
 					fclose(saving);
 				}
 			}
@@ -1398,6 +1439,13 @@ static int parse_cmdline(int argc, char **argv, RASPIRAW_PARAMS_T *cfg)
 					i++;
 				break;
 
+			case CommandMaxSize:
+				if (sscanf(argv[i + 1], "%d", &cfg->maxsize) != 1)
+					valid = 0;
+				else
+					i++;
+				break;
+
 			case CommandLoadMask:
 				cfg->loadmask = argv[i + 1];
 				i++;
@@ -1489,10 +1537,11 @@ int main(int argc, char** argv) {
 	cfg.evsave = NULL;
 	cfg.evextend = 2;
 	cfg.evarea = 1;
-	cfg.satvalue = 1023;
+	cfg.satvalue = 1020;
 	cfg.debug = 0;
 	cfg.showtime = 0;
 	cfg.loadmask = NULL;
+	cfg.maxsize = 2048;
 	//char default_regs[] = "380C,1F;380D,FF;380E,7F;380F,0F;3500,0F;3501,FF;3502,FF;3036,50;4000,00;5000,00";
 	//cfg.regs = default_regs;
 
